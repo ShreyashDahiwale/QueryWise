@@ -1,5 +1,2 @@
 # QueryWise
-
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+An DataViewer Web Application to fetch and view the data without using any Database Visual Tools
