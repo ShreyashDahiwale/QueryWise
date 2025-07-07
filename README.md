@@ -1,4 +1,4 @@
-# Firebase Studio
+# QueryWise
 
 This is a NextJS starter in Firebase Studio.
 
