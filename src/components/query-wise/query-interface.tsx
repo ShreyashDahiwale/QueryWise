@@ -11,9 +11,17 @@ interface QueryInterfaceProps {
   rowLimit: number;
   orderByColumn: string | undefined;
   orderDirection: 'asc' | 'desc' | undefined;
+  onTableChange: () => void; // Callback to reset values when table changes
 }
 
-export function QueryInterface({ onQueryStart, onQueryResult, rowLimit, orderByColumn, orderDirection }: QueryInterfaceProps) {
+export function QueryInterface({ 
+  onQueryStart, 
+  onQueryResult, 
+  rowLimit, 
+  orderByColumn, 
+  orderDirection, 
+  onTableChange 
+}: QueryInterfaceProps) {
   return (
     <Tabs defaultValue="manual" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
@@ -29,10 +37,16 @@ export function QueryInterface({ onQueryStart, onQueryResult, rowLimit, orderByC
       <TabsContent value="manual" className="mt-4">
         <ManualQueryBuilder
           onQueryStart={onQueryStart}
-          onQueryResult={onQueryResult}
+          onQueryResult={(result: { data?: any[] | null; error?: string }) =>
+            onQueryResult({
+              data: result.data ?? undefined,
+              error: result.error,
+            })
+          }
           rowLimit={rowLimit}
           orderByColumn={orderByColumn}
           orderDirection={orderDirection}
+          onTableChange={onTableChange}
         />
       </TabsContent>
       <TabsContent value="ai" className="mt-4">
@@ -42,6 +56,7 @@ export function QueryInterface({ onQueryStart, onQueryResult, rowLimit, orderByC
           rowLimit={rowLimit}
           orderByColumn={orderByColumn}
           orderDirection={orderDirection}
+          onTableChange={onTableChange}
         />
       </TabsContent>
     </Tabs>

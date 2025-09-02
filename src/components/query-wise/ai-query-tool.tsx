@@ -15,9 +15,17 @@ interface AiQueryToolProps {
   rowLimit: number;
   orderByColumn: string | undefined;
   orderDirection: 'asc' | 'desc' | undefined;
+  onTableChange: () => void; // Callback to reset values when table changes
 }
 
-export function AiQueryTool({ onQueryStart, onQueryResult, rowLimit, orderByColumn, orderDirection }: AiQueryToolProps) {
+export function AiQueryTool({ 
+  onQueryStart, 
+  onQueryResult, 
+  rowLimit, 
+  orderByColumn, 
+  orderDirection, 
+  onTableChange 
+}: AiQueryToolProps) {
   const [naturalLanguageQuery, setNaturalLanguageQuery] = useState('');
   const [expectedOutput, setExpectedOutput] = useState('');
   const [generatedSql, setGeneratedSql] = useState('');
@@ -71,6 +79,9 @@ export function AiQueryTool({ onQueryStart, onQueryResult, rowLimit, orderByColu
         if (!result.tableName) {
           throw new Error('AI could not determine the table to query.');
         }
+
+        // Reset values when executing a query (as it might be on a different table)
+        onTableChange();
 
         const data = await executeQueryAction(result.tableName, result.whereClauses || [], rowLimit, orderByColumn, orderDirection);
         onQueryResult({ data });

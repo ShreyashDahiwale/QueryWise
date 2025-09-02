@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Header } from '@/components/query-wise/header';
 import { QueryInterface } from '@/components/query-wise/query-interface';
 import { DataDisplay } from '@/components/query-wise/data-display';
+import { Sun, Moon } from 'lucide-react';
 
 export default function Home() {
   const [queryResult, setQueryResult] = useState<Record<string, any>[] | null>(null);
@@ -23,7 +24,7 @@ export default function Home() {
     setError(null);
   };
 
-  const handleQueryResult = ({ data, error: queryError }: { data?: any[]; error?: string }) => {
+  const handleQueryResult = ({ data, error: queryError }: { data?: any[] | null; error?: string }) => {
     if (queryError) {
       setError(queryError);
       setQueryResult(null);
@@ -36,6 +37,13 @@ export default function Home() {
       setError(null);
     }
     setIsLoading(false);
+  };
+
+  const handleTableChange = () => {
+    // Reset values when table changes
+    setRowLimit(100);
+    setOrderByColumn(undefined);
+    setOrderDirection('asc');
   };
 
   const toggleTheme = () => {
@@ -55,7 +63,7 @@ export default function Home() {
       <main className="container mx-auto p-4 md:p-8 flex-grow">
         <div className="absolute top-4 right-4">
           <Button onClick={toggleTheme} variant="outline" size="sm">
-            Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
+            {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           </Button>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start h-full">
@@ -66,6 +74,7 @@ export default function Home() {
               orderDirection={orderDirection}
               onQueryStart={handleQueryStart}
               onQueryResult={handleQueryResult}
+              onTableChange={handleTableChange}
             />
           </div>
           <div className="lg:col-span-3">

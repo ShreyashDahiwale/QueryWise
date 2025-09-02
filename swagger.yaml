@@ -1,0 +1,569 @@
+openapi: 3.0.3
+info:
+  title: QueryWise API
+  description: |
+    A modern, AI-powered database query interface API built with Next.js and MySQL.
+    This API allows users to interact with MySQL databases through an intuitive interface,
+    featuring natural language query processing and dynamic SQL generation.
+    
+    ## Features
+    - **Smart Database Interaction**: Table selection, dynamic query building, real-time data display
+    - **AI-Powered SQL Generation**: Natural language to SQL conversion with intelligent validation
+    - **Modern User Interface**: Responsive design with dark/light mode support
+    - **Performance & Reliability**: Optimized database connections with caching and error recovery
+    
+    ## Database Connection
+    The application connects to a MySQL database using the following configuration:
+    - Host: Configured via `DB_HOST` environment variable (default: localhost:3306)
+    - Database: Configured via `DB_NAME` environment variable (default: sakila)
+    - User: Configured via `DB_USER` environment variable (default: root)
+    - Password: Configured via `DB_PASSWORD` environment variable (default: root)
+    
+    ## Authentication
+    This API currently does not require authentication, but it's recommended to implement
+    proper authentication for production use.
+    
+    ## Rate Limiting
+    Consider implementing rate limiting for production deployments to prevent abuse.
+  version: 1.0.0
+  contact:
+    name: QueryWise Support
+    url: https://github.com/ShreyashDahiwale/QueryWise
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:9002
+    description: Development server
+  - url: https://your-domain.com
+    description: Production server (replace with your actual domain)
+
+paths:
+  /api/tables:
+    get:
+      summary: Get all database tables
+      description: |
+        Retrieves a list of all tables in the connected MySQL database.
+        Returns table names and descriptions from the information_schema.
+      tags:
+        - Database Schema
+      responses:
+        '200':
+          description: Successfully retrieved tables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Table'
+              examples:
+                sakila_database:
+                  summary: Sample response from Sakila database
+                  value:
+                    - name: "actor"
+                      description: "Actor information"
+                    - name: "film"
+                      description: "Film information"
+                    - name: "customer"
+                      description: "Customer information"
+        '500':
+          description: Database connection error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/tables/{tableName}/columns:
+    get:
+      summary: Get table columns
+      description: |
+        Retrieves detailed information about all columns in a specific table.
+        Returns column names, data types, constraints, and descriptions.
+      tags:
+        - Database Schema
+      parameters:
+        - name: tableName
+          in: path
+          required: true
+          description: Name of the table to get columns for
+          schema:
+            type: string
+          example: "actor"
+      responses:
+        '200':
+          description: Successfully retrieved table columns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Column'
+              examples:
+                actor_table_columns:
+                  summary: Sample response for actor table
+                  value:
+                    - name: "actor_id"
+                      type: "smallint"
+                      nullable: "NO"
+                      defaultValue: null
+                      description: "Primary key for actor records"
+                    - name: "first_name"
+                      type: "varchar"
+                      nullable: "NO"
+                      defaultValue: null
+                      description: "Actor's first name"
+                    - name: "last_name"
+                      type: "varchar"
+                      nullable: "NO"
+                      defaultValue: null
+                      description: "Actor's last name"
+                    - name: "last_update"
+                      type: "timestamp"
+                      nullable: "NO"
+                      defaultValue: "CURRENT_TIMESTAMP"
+                      description: "Last update timestamp"
+        '400':
+          description: Invalid table name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Table not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Database error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/query:
+    post:
+      summary: Execute database query
+      description: |
+        Executes a SELECT query on a specified table with optional filtering,
+        ordering, and limiting. Supports various comparison operators and
+        parameterized queries for security.
+      tags:
+        - Query Execution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            examples:
+              simple_query:
+                summary: Simple query without filters
+                value:
+                  tableName: "actor"
+                  limit: 10
+              filtered_query:
+                summary: Query with WHERE clauses
+                value:
+                  tableName: "actor"
+                  whereClauses:
+                    - column: "first_name"
+                      operator: "LIKE"
+                      value: "John"
+                    - column: "last_name"
+                      operator: "="
+                      value: "Doe"
+                  limit: 50
+                  orderByColumn: "last_name"
+                  orderDirection: "asc"
+              complex_query:
+                summary: Complex query with multiple conditions
+                value:
+                  tableName: "film"
+                  whereClauses:
+                    - column: "rating"
+                      operator: "="
+                      value: "PG-13"
+                    - column: "length"
+                      operator: ">"
+                      value: "120"
+                    - column: "title"
+                      operator: "LIKE"
+                      value: "Action"
+                  limit: 100
+                  orderByColumn: "title"
+                  orderDirection: "asc"
+      responses:
+        '200':
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              examples:
+                actor_results:
+                  summary: Sample results from actor table
+                  value:
+                    - actor_id: 1
+                      first_name: "PENELOPE"
+                      last_name: "GUINESS"
+                      last_update: "2006-02-15T04:34:33.000Z"
+                    - actor_id: 2
+                      first_name: "NICK"
+                      last_name: "WAHLBERG"
+                      last_update: "2006-02-15T04:34:33.000Z"
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Table not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Database query execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/validate-query:
+    post:
+      summary: Validate natural language query
+      description: |
+        Uses AI to validate a natural language query against the available
+        database tables. Checks if the query can be properly understood
+        and converted to SQL.
+      tags:
+        - AI Features
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidationRequest'
+            examples:
+              simple_validation:
+                summary: Simple query validation
+                value:
+                  naturalLanguageQuery: "Show me all actors"
+                  expectedOutput: "List of all actors in the database"
+              complex_validation:
+                summary: Complex query validation
+                value:
+                  naturalLanguageQuery: "Find films with rating PG-13 that are longer than 2 hours"
+                  expectedOutput: "List of PG-13 rated films longer than 120 minutes"
+      responses:
+        '200':
+          description: Query validation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              examples:
+                valid_query:
+                  summary: Valid query response
+                  value:
+                    isValid: true
+                    confidence: 0.95
+                    suggestions: ["Consider adding a limit to improve performance"]
+                    sqlPreview: "SELECT * FROM film WHERE rating = 'PG-13' AND length > 120"
+                invalid_query:
+                  summary: Invalid query response
+                  value:
+                    isValid: false
+                    confidence: 0.3
+                    suggestions: ["Please specify which table you want to query", "Add more context about what data you need"]
+                    sqlPreview: null
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: AI service error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/generate-sql:
+    post:
+      summary: Generate SQL from natural language
+      description: |
+        Converts a natural language query to SQL using AI.
+        Analyzes the available tables and columns to generate
+        appropriate SQL queries.
+      tags:
+        - AI Features
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SQLGenerationRequest'
+            examples:
+              simple_generation:
+                summary: Simple SQL generation
+                value:
+                  naturalLanguageQuery: "Show me all customers from California"
+              complex_generation:
+                summary: Complex SQL generation
+                value:
+                  naturalLanguageQuery: "Find films with more than 10 actors, ordered by title, limited to 50 results"
+      responses:
+        '200':
+          description: SQL generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SQLGenerationResponse'
+              examples:
+                simple_sql:
+                  summary: Simple SQL response
+                  value:
+                    sql: "SELECT * FROM customer WHERE address_id IN (SELECT address_id FROM address WHERE city = 'California')"
+                    explanation: "This query finds customers by looking up their address in the address table and filtering by city"
+                    confidence: 0.92
+                    suggestedImprovements: ["Consider adding a LIMIT clause for large datasets"]
+                complex_sql:
+                  summary: Complex SQL response
+                  value:
+                    sql: "SELECT f.title, COUNT(fa.actor_id) as actor_count FROM film f JOIN film_actor fa ON f.film_id = fa.film_id GROUP BY f.film_id HAVING actor_count > 10 ORDER BY f.title LIMIT 50"
+                    explanation: "This query joins the film and film_actor tables, groups by film, counts actors per film, filters for films with more than 10 actors, orders by title, and limits results to 50"
+                    confidence: 0.88
+                    suggestedImprovements: ["Consider adding an index on film_actor.actor_id for better performance"]
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: AI service or database error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Table:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the table
+          example: "actor"
+        description:
+          type: string
+          description: Description or comment for the table
+          example: "Actor information"
+      required:
+        - name
+
+    Column:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the column
+          example: "actor_id"
+        type:
+          type: string
+          description: Data type of the column
+          example: "smallint"
+        nullable:
+          type: string
+          description: Whether the column can contain NULL values
+          example: "NO"
+        defaultValue:
+          type: string
+          nullable: true
+          description: Default value for the column
+          example: "CURRENT_TIMESTAMP"
+        description:
+          type: string
+          description: Description or comment for the column
+          example: "Primary key for actor records"
+      required:
+        - name
+        - type
+        - nullable
+
+    WhereClause:
+      type: object
+      properties:
+        column:
+          type: string
+          description: Name of the column to filter on
+          example: "first_name"
+        operator:
+          type: string
+          description: Comparison operator
+          enum: ["=", "!=", ">", "<", ">=", "<=", "LIKE"]
+          example: "LIKE"
+        value:
+          type: string
+          description: Value to compare against
+          example: "John"
+      required:
+        - column
+        - operator
+        - value
+
+    QueryRequest:
+      type: object
+      properties:
+        tableName:
+          type: string
+          description: Name of the table to query
+          example: "actor"
+        whereClauses:
+          type: array
+          items:
+            $ref: '#/components/schemas/WhereClause'
+          description: Array of WHERE clause conditions
+          example:
+            - column: "first_name"
+              operator: "LIKE"
+              value: "John"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+          description: Maximum number of results to return
+          example: 50
+        orderByColumn:
+          type: string
+          description: Column name to order results by
+          example: "last_name"
+        orderDirection:
+          type: string
+          enum: ["asc", "desc"]
+          default: "asc"
+          description: Sort direction
+          example: "asc"
+      required:
+        - tableName
+
+    ValidationRequest:
+      type: object
+      properties:
+        naturalLanguageQuery:
+          type: string
+          description: Natural language query to validate
+          example: "Show me all actors from California"
+        expectedOutput:
+          type: string
+          description: Expected output description
+          example: "List of actors from California"
+      required:
+        - naturalLanguageQuery
+        - expectedOutput
+
+    ValidationResponse:
+      type: object
+      properties:
+        isValid:
+          type: boolean
+          description: Whether the query is valid
+          example: true
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confidence score of the validation
+          example: 0.95
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: Suggestions for improving the query
+          example: ["Consider adding a limit clause"]
+        sqlPreview:
+          type: string
+          nullable: true
+          description: Preview of the generated SQL (if valid)
+          example: "SELECT * FROM actor WHERE state = 'California'"
+
+    SQLGenerationRequest:
+      type: object
+      properties:
+        naturalLanguageQuery:
+          type: string
+          description: Natural language query to convert to SQL
+          example: "Find all films with rating PG-13"
+      required:
+        - naturalLanguageQuery
+
+    SQLGenerationResponse:
+      type: object
+      properties:
+        sql:
+          type: string
+          description: Generated SQL query
+          example: "SELECT * FROM film WHERE rating = 'PG-13'"
+        explanation:
+          type: string
+          description: Explanation of what the SQL query does
+          example: "This query selects all films from the film table where the rating is PG-13"
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confidence score of the generated SQL
+          example: 0.92
+        suggestedImprovements:
+          type: array
+          items:
+            type: string
+          description: Suggestions for improving the query
+          example: ["Consider adding a LIMIT clause for large datasets"]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Database connection failed"
+        code:
+          type: string
+          description: Error code
+          example: "DB_CONNECTION_ERROR"
+        details:
+          type: string
+          nullable: true
+          description: Additional error details
+          example: "Connection timeout after 30 seconds"
+      required:
+        - error
+
+tags:
+  - name: Database Schema
+    description: Operations for retrieving database structure information
+  - name: Query Execution
+    description: Operations for executing database queries
+  - name: AI Features
+    description: AI-powered query validation and SQL generation
+
+externalDocs:
+  description: QueryWise Documentation
+  url: https://github.com/ShreyashDahiwale/QueryWise

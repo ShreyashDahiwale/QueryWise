@@ -2,14 +2,38 @@
 
 import { generateSQL } from '@/ai/flows/generate-sql-from-natural-language';
 import { validateNaturalLanguageQuery } from '@/ai/flows/validate-natural-language-query';
-import { tables, columns, data, columnDescriptionsForAI } from '@/lib/db-mock';
+import { query } from '@/lib/db';
+import queryRepository from '@/helper/queryRepository.json';
 
 export async function getTablesAction() {
-  return tables;
+  try {
+    const tables = await query(queryRepository.queryToFetchTableInfo, []);
+    return tables as any[];
+  } catch (error) {
+    console.error('Error fetching tables:', error);
+    return [];
+  }
 }
 
 export async function getTableColumnsAction(tableName: string) {
-  return columns[tableName] || [];
+  try {
+    const columns = await query(`
+      SELECT 
+        COLUMN_NAME as name,
+        DATA_TYPE as type,
+        IS_NULLABLE as nullable,
+        COLUMN_DEFAULT as defaultValue,
+        COLUMN_COMMENT as description
+      FROM information_schema.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = '${tableName}'
+      ORDER BY ORDINAL_POSITION
+    `, []);
+    return columns as any[];
+  } catch (error) {
+    console.error('Error fetching columns:', error);
+    return [];
+  }
 }
 
 interface WhereClause {
@@ -19,87 +43,73 @@ interface WhereClause {
 }
 
 export async function executeQueryAction(tableName: string, whereClauses: WhereClause[], limit: number = 100, orderByColumn?: string, orderDirection: 'asc' | 'desc' = 'asc') {
-  // Simulate DB query
-  await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+  try {
+    let sql = `SELECT * FROM \`${tableName}\``;
+    const params: any[] = [];
 
-  if (!data[tableName]) {
-    throw new Error(`Table "${tableName}" not found.`);
-  }
-
-  let results = data[tableName];
-
-  if (whereClauses && whereClauses.length > 0) {
-    results = results.filter(row => {
-      return whereClauses.every(clause => {
-        if (!clause.column || !clause.operator) return true;
-        const rowValue = row[clause.column];
-        const clauseValue = clause.value;
-
-        // Handle case-insensitive comparison for strings
-        const normalizedRowValue = typeof rowValue === 'string' ? rowValue.toLowerCase() : rowValue;
-        const normalizedClauseValue = typeof clauseValue === 'string' ? clauseValue.toLowerCase() : clauseValue;
-        const numericClauseValue = Number(clauseValue);
-
-        switch (clause.operator) {
-          case '=':
-            return String(rowValue) === String(clauseValue);
-          case '!=':
-            return String(rowValue) !== String(clauseValue);
-          case '>':
-            return rowValue > numericClauseValue;
-          case '<':
-            return rowValue < numericClauseValue;
-          case '>=':
-            return rowValue >= numericClauseValue;
-          case '<=':
-            return rowValue <= numericClauseValue;
-          case 'LIKE':
-            return String(normalizedRowValue).includes(String(normalizedClauseValue));
-          default:
-            return true;
+    if (whereClauses && whereClauses.length > 0) {
+      const whereConditions = whereClauses.map(clause => {
+        if (clause.operator === 'LIKE') {
+          params.push(`%${clause.value}%`);
+          return `\`${clause.column}\` LIKE ?`;
+        } else {
+          params.push(clause.value);
+          return `\`${clause.column}\` ${clause.operator} ?`;
         }
       });
-    });
+      sql += ` WHERE ${whereConditions.join(' AND ')}`;
+    }
+
+    if (orderByColumn) {
+      sql += ` ORDER BY \`${orderByColumn}\` ${orderDirection.toUpperCase()}`;
+    }
+
+    if (limit) {
+      sql += ` LIMIT ${limit}`;
+    }
+
+    const results = await query(sql, params);
+    return results as any[];
+  } catch (error) {
+    console.error('Error executing query:', error);
+    throw new Error(`Database query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  if (orderByColumn && results.length > 0 && results[0].hasOwnProperty(orderByColumn)) {
-    results.sort((a, b) => {
-      const aValue = a[orderByColumn];
-      const bValue = b[orderByColumn];
-
-      if (aValue < bValue) {
-        return orderDirection === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return orderDirection === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
-  }
-
-  if (limit) {
-    return results.slice(0, limit);
-  }
-
-  return results;
 }
 
 export async function validateQueryAction(naturalLanguageQuery: string, expectedOutput: string) {
-  const tableNames = tables.map(t => t.name).join(', ');
-  return await validateNaturalLanguageQuery({
-    naturalLanguageQuery,
-    tableNames,
-    expectedOutput,
-  });
+  try {
+    const tables = await getTablesAction();
+    const tableNames = tables.map((t: any) => t.name).join(', ');
+    return await validateNaturalLanguageQuery({
+      naturalLanguageQuery,
+      tableNames,
+      expectedOutput,
+    });
+  } catch (error) {
+    console.error('Error validating query:', error);
+    throw error;
+  }
 }
 
 export async function generateSqlAction(naturalLanguageQuery: string) {
-  const tableNames = tables.map(t => t.name);
-  const descriptions = columnDescriptionsForAI(tableNames);
-  
-  return await generateSQL({
-    naturalLanguageQuery,
-    tableNames,
-    columnDescriptions: descriptions,
-  });
+  try {
+    const tables = await getTablesAction();
+    const tableNames = tables.map((t: any) => t.name);
+    
+    // Get column descriptions for AI
+    const columnDescriptions: Record<string, string> = {};
+    for (const table of tables) {
+      const columns = await getTableColumnsAction(table.name);
+      columnDescriptions[table.name] = columns.map((col: any) => `${col.name} (${col.type})`).join(', ');
+    }
+    
+    return await generateSQL({
+      naturalLanguageQuery,
+      tableNames,
+      columnDescriptions,
+    });
+  } catch (error) {
+    console.error('Error generating SQL:', error);
+    throw error;
+  }
 }

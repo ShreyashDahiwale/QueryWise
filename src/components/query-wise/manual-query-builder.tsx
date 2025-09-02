@@ -16,6 +16,7 @@ interface ManualQueryBuilderProps {
   rowLimit: number;
   orderByColumn: string | undefined;
   orderDirection: 'asc' | 'desc' | undefined;
+  onTableChange: () => void;
 }
 
 type WhereClause = {
@@ -38,7 +39,14 @@ type ColumnInfo = {
 
 const operators = ['=', '!=', '>', '<', '>=', '<=', 'LIKE'];
 
-export function ManualQueryBuilder({ onQueryStart, onQueryResult, rowLimit, orderByColumn, orderDirection }: ManualQueryBuilderProps) {
+export function ManualQueryBuilder({ 
+  onQueryStart, 
+  onQueryResult, 
+  rowLimit, 
+  orderByColumn, 
+  orderDirection, 
+  onTableChange 
+}: ManualQueryBuilderProps) {
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [selectedTable, setSelectedTable] = useState('');
   const [columns, setColumns] = useState<ColumnInfo[]>([]);
@@ -92,6 +100,8 @@ export function ManualQueryBuilder({ onQueryStart, onQueryResult, rowLimit, orde
 
   const handleTableChange = (value: string) => {
     setSelectedTable(value);
+    // Reset values when table changes
+    onTableChange();
   };
 
   const handleClauseChange = (id: number, field: keyof Omit<WhereClause, 'id'>, value: string) => {

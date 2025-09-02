@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '../ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -63,26 +62,28 @@ export function DataDisplay({ queryResult, isLoading, error }: DataDisplayProps)
     }
 
     return (
-      <ScrollArea className="h-[60vh] w-full">
-        <Table>
-          <TableHeader className="sticky top-0 bg-card">
-            <TableRow>
-              {columns.map((col) => (
-                <TableHead key={col} className="font-bold">{col.replace(/_/g, ' ').toUpperCase()}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {queryResult.map((row, rowIndex) => (
-              <TableRow key={rowIndex}>
+      <div className="h-[60vh] w-full overflow-auto">
+        <div className="min-w-max">
+          <Table>
+            <TableHeader className="sticky top-0 bg-card">
+              <TableRow>
                 {columns.map((col) => (
-                  <TableCell key={`${rowIndex}-${col}`}>{String(row[col])}</TableCell>
+                  <TableHead key={col} className="font-bold whitespace-nowrap px-4 py-3">{col.replace(/_/g, ' ').toUpperCase()}</TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+            </TableHeader>
+            <TableBody>
+              {queryResult.map((row, rowIndex) => (
+                <TableRow key={rowIndex}>
+                  {columns.map((col) => (
+                    <TableCell key={`${rowIndex}-${col}`} className="whitespace-nowrap px-4 py-3">{String(row[col])}</TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     );
   };
 
@@ -91,8 +92,7 @@ export function DataDisplay({ queryResult, isLoading, error }: DataDisplayProps)
       <CardHeader>
         <div className="flex justify-between items-start">
             <div>
-                <CardTitle>Query Results</CardTitle>
-                <CardDescription>The data fetched from your query is displayed below.</CardDescription>
+                <CardTitle>Records</CardTitle>
             </div>
             {queryResult && queryResult.length > 0 && (
                 <Button variant="outline" size="icon" onClick={handleDownload} aria-label="Download results">
